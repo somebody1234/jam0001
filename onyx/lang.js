@@ -171,7 +171,6 @@ function parse(toks) {
     } else {
       // todo: destructure maybe idk
       let expr = function_() || eatType('identifier');
-      if (expr && expr.type === 'function_definition') {console.info('expr', expr);}
       if (expr) {
         while (true) {
           if (eat('.')) {
@@ -456,12 +455,15 @@ function parse(toks) {
     const name = eatType('identifier') || { type: 'identifier', syntaxType: 'function', value: '', start: pos, end: pos, error: null, directives: [] };
     const args = argumentDeclarations();
     if (!args) { errors.push('expected function input list (<code>[first second]</code>)'); }
-    const dirs = directives();
+    else {
+      args.directives = directives();
+      if (args.directives.length) { args.end = args.directives[args.directives.length - 1].end; }
+    }
+    let dirs;
     const body = block();
     if (!body) { errors.push('expected function body (a block)'); }
     else {
-      console.info(body.directives);
-      dirs.push(...body.directives);
+      dirs = body.directives;
       body.directives = [];
       body.end = body.statements.statements.length ? body.statements.statements[body.statements.statements.length - 1].end : body.start + 1;
     }
@@ -767,7 +769,7 @@ function functionize(node) {
       // const argFns = node.args.map(functionize);
       const bodyFn = functionize(node.body);
       fn = (scope) => {
-        return scope.set(node.name.value, { [node.name.value]: applyFunctionDirectives(node.directives, (...args) => {
+        return scope.set(node.name.value, { [node.name.value]: applyFunctionDirectives(node.arguments.directives.concat(node.directives), (...args) => {
           const newScope = new Scope(scope);
           for (let i = 0; i < args.length; i += 1) {
             const argNode = node.arguments.arguments[i];
